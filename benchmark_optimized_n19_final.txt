@@ -1,0 +1,13 @@
+algorithm = optimized local-page chunk-pool ranked DP (exact 384-bit)
+n = 19
+limit = 60 seconds
+status = TIME_LIMIT
+rank universe = 1067892400
+paths = INCOMPLETE
+peak states = 126709376
+transitions = 4023133068
+progress row = 3, col = 11, states = 84983808/126709376
+allocated rank pages = 20896
+allocated entry capacity = 251461632
+elapsed = 60.835879600 seconds
+elapsed_ns = 60835879600

@@ -1,0 +1,14 @@
+algorithm = minimal-perfect-hash in-place DP (exact 384-bit)
+n = 16
+limit = 120 seconds
+status = COMPLETED
+paths = 68745445609149931587631563132489232824587945968099457285419306
+main states = 4179603
+deferred states = 1503312
+number storage bytes = 272779920
+updates = 272
+state visits = 1136852016
+progress row = 17, col = 17
+threads = 16
+elapsed = 113.594419200 seconds
+elapsed_ns = 113594419200

@@ -1,0 +1,13 @@
+# Normalize text files to LF in the repository.
+* text=auto eol=lf
+
+# Windows shell scripts require CRLF to behave reliably.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary artifacts must never be transformed.
+*.exe binary
+*.obj binary
+*.pgc binary
+*.pgd binary

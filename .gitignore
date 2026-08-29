@@ -1,0 +1,49 @@
+# ---------------------------------------------------------------------------
+# Build artifacts (regenerable via the build_*.bat scripts)
+# ---------------------------------------------------------------------------
+*.exe
+*.obj
+*.pdb
+*.ilk
+*.lib
+*.exp
+*.res
+*.nativecodeanalysis.xml
+*.nativecodeanalysis.xml.filter
+
+# Profile-guided optimization profiles
+*.pgc
+*.pgd
+*.pgt
+
+# ---------------------------------------------------------------------------
+# Benchmark scratch output
+#
+# The probe scripts write `.mph_*.stdout.tmp` / `.mph_*.stderr.tmp` into the
+# repository root. Those captures are collected into `audit_logs/` (see
+# audit_logs/README.md) rather than being deleted, so the audit trail survives.
+# Neither the raw captures nor the collected copy is versioned — both are
+# regenerable output.
+# ---------------------------------------------------------------------------
+.mph_*.tmp
+*.tmp
+audit_logs/
+
+# ---------------------------------------------------------------------------
+# Superseded first-generation implementations (kept on disk, not versioned)
+# ---------------------------------------------------------------------------
+old/
+
+# ---------------------------------------------------------------------------
+# Agent workspace (project memory and session state)
+# ---------------------------------------------------------------------------
+.workbuddy-ai/
+
+# ---------------------------------------------------------------------------
+# OS / editor noise
+# ---------------------------------------------------------------------------
+Thumbs.db
+desktop.ini
+.vs/
+*.user
+*.suo
