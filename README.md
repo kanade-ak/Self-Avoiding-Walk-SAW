@@ -62,15 +62,33 @@ powershell -ExecutionPolicy Bypass -File .\scripts\benchmark\benchmark_mph_inpla
 | 無効ペアのブロックを丸ごと skip | 全訪問の15.7%を削れるが n=16 で -2.0%（悪化）。キャッシュライン被覆率が常に100%のため転送量が減らない | [docs/OPTIMIZATION_HEADROOM.md](docs/OPTIMIZATION_HEADROOM.md) |
 | switch のループ外ホイスト | n=16 で +0.2%。分岐予測はボトルネックではない | [docs/OPTIMIZATION_HEADROOM.md](docs/OPTIMIZATION_HEADROOM.md) |
 
-## 最適化の余地
+## 採用した最適化
 
 `src/moto_probe_mph_inplace.cpp` のボトルネックは演算でも分岐でもなく **メモリ転送量**
-（時間が要素サイズにほぼ比例する）。残っている余地は次の2つ。
+（時間が要素サイズにほぼ比例する）。そこで要素の limb 数を n ごとに最小にした
+（`FixedCount<LIMB_COUNT>` + `limbCountForN()`、n=16 は6→4、n=18/19 は6→5）。
+
+| n | 14 | 15 | 16 | 17 | 18 | 19 | 20 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| limb 数 | 3 | 3 | 4 | 4 | 5 | 5 | 6 |
+| 要素サイズ | 24 B | 24 B | 32 B | 32 B | 40 B | 40 B | 48 B |
+| 変化 (16 thr) | -7.1% | **-54.8%** | **-35.4%** | **-32.6%** | **-18.4%** | **-15.7%** | -3.5% |
+
+`paths` は n=0..17 で 6 limbs 固定版と完全一致、n=18/19/20 は過去の実行結果とも一致。
+第4引数で limb 数を強制できる（A/B 計測用。省略時は自動）。
+
+```bat
+build\moto_probe_mph_inplace_parallel.exe 18 120 16
+build\moto_probe_mph_inplace_parallel.exe 16 120 16 6   : limb 数を6に固定
+```
+
+## 最適化の余地
+
+残っている余地は次の1つ。
 
 | 施策 | 効果 |
 |---|---|
-| nごとの静的 limb 数（n=16 は6→4、n=18/19 は6→5） | n=16 -33.5% / n=18 -16.2% / n=19 -15.2% / n=20 0% |
-| 要素サイズの実行時成長（未実装） | n=20 で推定 約1.9〜2.0倍（238.8秒 → 約123秒） |
+| 要素サイズの実行時成長（未実装） | n=20 で推定 約1.9〜2.0倍（244.6秒 → 約126秒） |
 
 詳細は [最適化余地の調査](docs/OPTIMIZATION_HEADROOM.md)。
 

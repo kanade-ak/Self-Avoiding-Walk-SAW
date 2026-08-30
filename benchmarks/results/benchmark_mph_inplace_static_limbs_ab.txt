@@ -1,0 +1,51 @@
+n ごとの静的 limb 数（FixedCount<LIMB_COUNT> + limbCountForN）の A/B 計測
+
+日時: 2026-08-30
+環境: Intel Core i9-12900KS / RAM 63.8 GiB / MSVC 14.44
+      /O2 /GL /EHsc /std:c++20 /utf-8 /W4 /permissive- /DNDEBUG /openmp
+      threads = 16、limit = 3600 秒
+
+BASE = 変更前のバイナリ（全 n で 6 limbs / 48 B 固定、src を HEAD から取得して別ビルド）
+NEW  = 変更後（n ごとに最小 limb 数を選択）
+
+各 n つき BASE / NEW を 2〜3 回実行し、elapsed_ns の最小値を採用。
+（n=20 は 1 回ずつ。約 8 分かかるため）
+
+  n  limbs   要素     BASE          NEW          変化       number storage
+  -  -----   ----     -----------   ----------   --------   ------------------------
+ 14      3   24 B      0.141 秒     0.131 秒     -7.1%     35.5 MB  -> 17.8 MB
+ 15      3   24 B      0.770 秒     0.348 秒    -54.8%     98.2 MB  -> 49.1 MB
+ 16      4   32 B      2.558 秒     1.651 秒    -35.4%    272.8 MB  -> 181.9 MB
+ 17      4   32 B      7.985 秒     5.380 秒    -32.6%    760.4 MB  -> 507.0 MB
+ 18      5   40 B     25.697 秒    20.962 秒    -18.4%   2127.2 MB  -> 1772.6 MB
+ 19      5   40 B     74.635 秒    62.906 秒    -15.7%   5968.7 MB  -> 4973.9 MB
+ 20      6   48 B    253.541 秒   244.628 秒     -3.5%  16795.7 MB  -> 16795.7 MB
+
+n=20 は limb 数も要素サイズも不変。-3.5% はノイズであり、退行ではない
+（6 limbs 同士で単独に比較した計測では +0.9% だった）。
+
+同一 limb 数での比較（n=16、6 limbs / 48 B）
+  BASE 展開された _addcarry_u64 6 段     2.558 秒
+  NEW  for (limb < LIMB_COUNT) ループ    2.580 秒   (+0.9%)
+  NEW  4 limbs                           1.651 秒  (-35.4%)
+
+ループ化による退行はない（MSVC が完全に展開するため）。
+
+正しさの確認
+  - n=0..17 について BASE と NEW の paths / main states / deferred states /
+    updates / state visits が完全一致
+  - n=18 / 19 / 20 の paths は benchmarks/audit_logs/ に残る過去の独立した
+    実行結果と一致
+      n=18  benchmarks/audit_logs/stdout/mph_inplace_final_default_n18_n18.stdout.txt
+      n=19  benchmarks/audit_logs/stdout/mph_inplace_parallel_n19.stdout.txt
+      n=20  benchmarks/audit_logs/stdout/mph_inplace_parallel300_n20.stdout.txt
+
+必要 limb 数の根拠は archive/scratch/scratch_peakbits.cpp による実測
+（operator+= のたびに最大ビット長を記録）。
+  n:     1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19  20
+  peak:  2  4  8 14 21 30 40 52 66 81 98 116 136 158 181 206 233 261 290 (~323)
+  limbs: 1  1  1  1  1  1  1  1  2  2  2  2  3  3  3  4  4  5  5  6
+
+生ログ: archive/scratch/bench_limbs.log, archive/scratch/peakbits.log,
+        archive/scratch/peakbits19.log
+解説:   docs/OPTIMIZATION_HEADROOM.md

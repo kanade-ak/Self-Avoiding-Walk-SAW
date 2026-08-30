@@ -50,18 +50,26 @@ int bitcount(uint32_t n) {
 
 // Dense in-place DP用。配列確保時の二重初期化を避けるため、
 // default constructorは意図的に値を初期化しない。
-class Count {
+//
+// limb 数はコンパイル時パラメータにしてある。この DP は演算でも分岐でもなく
+// メモリ転送量で律速されており、実行時間が sizeof(Number) にほぼ比例するため
+// （docs/OPTIMIZATION_HEADROOM.md 参照）、要素を細くするのが最も効く。
+// n ごとに溢出しない最小の limb 数を limbCountForN() で選ぶ。
+template<std::size_t LIMB_COUNT>
+class FixedCount {
 public:
-    static constexpr std::size_t LIMB_COUNT = 6;
+    static_assert(LIMB_COUNT >= 1, "at least one limb is required");
+
+    static constexpr std::size_t limb_count = LIMB_COUNT;
     static constexpr int BIT_COUNT = static_cast<int>(64 * LIMB_COUNT);
 
-    Count() noexcept {}
+    FixedCount() noexcept {}
 
-    explicit Count(std::uint32_t value) noexcept {
+    explicit FixedCount(std::uint32_t value) noexcept {
         *this = value;
     }
 
-    Count& operator=(std::uint32_t value) noexcept {
+    FixedCount& operator=(std::uint32_t value) noexcept {
         limbs_[0] = value;
         for (std::size_t limb = 1; limb < LIMB_COUNT; ++limb) {
             limbs_[limb] = 0;
@@ -85,22 +93,16 @@ public:
         return !(*this == value);
     }
 
-    Count& operator+=(const Count& other) {
+    FixedCount& operator+=(const FixedCount& other) {
         unsigned char carry = 0;
-        carry = _addcarry_u64(
-            carry, limbs_[0], other.limbs_[0], &limbs_[0]);
-        carry = _addcarry_u64(
-            carry, limbs_[1], other.limbs_[1], &limbs_[1]);
-        carry = _addcarry_u64(
-            carry, limbs_[2], other.limbs_[2], &limbs_[2]);
-        carry = _addcarry_u64(
-            carry, limbs_[3], other.limbs_[3], &limbs_[3]);
-        carry = _addcarry_u64(
-            carry, limbs_[4], other.limbs_[4], &limbs_[4]);
-        carry = _addcarry_u64(
-            carry, limbs_[5], other.limbs_[5], &limbs_[5]);
+        for (std::size_t limb = 0; limb < LIMB_COUNT; ++limb) {
+            carry = _addcarry_u64(
+                carry, limbs_[limb], other.limbs_[limb], &limbs_[limb]);
+        }
         if (carry != 0) {
-            throw std::overflow_error("in-place count exceeded 384 bits");
+            throw std::overflow_error(
+                std::string("in-place count exceeded ")
+                    + std::to_string(BIT_COUNT) + " bits");
         }
         return *this;
     }
@@ -127,6 +129,37 @@ public:
 private:
     std::array<std::uint64_t, LIMB_COUNT> limbs_;
 };
+
+// 旧名の後方互換エイリアス（tests/ と過去の計測との整合用）。
+using Count = FixedCount<6>;
+
+// 各 n について溢出しない最小 limb 数。
+//
+// 判定に使うのは「最終解」ではなく「DP の途中で value[] / deferred[] が
+// 取りうる最大値」である。両者は近いが一致しない（n=18 は解 260 ビットに
+// 対してピーク 261 ビット）。
+//
+// 値は archive/scratch/scratch_peakbits.cpp による実測（n=1..18）と、
+// 実走行での溢出検証（n=19 は 5 limb で成功・4 limb で溢出、
+// n=20 は 6 limb で成功・5 limb で溢出）による。
+//
+//   n        1  2  3  4  5  6  7  8 | 9 10 11 12 | 13 14 15 | 16 17 | 18 19 |  20
+//   peak     2  4  8 14 21 30 40 52 |66 81 98 116|136 158 181|206 233|261 290|~323
+//   limbs    1  1  1  1  1  1  1  1 | 2  2  2   2|  3   3   3|  4   4|  5   5|   6
+//
+// n=19 までが実測値。n=20 はピークの増分（n が 1 増えるごとに +28〜30 ビット）
+// からの外挿だが、実走行で 5 limb は溢出・6 limb は成功するため選択自体は確定。
+//
+// DP の遷移を変えた場合は必ず測り直すこと。溢出は FixedCount::operator+= が
+// std::overflow_error を投げて検出される。
+constexpr int limbCountForN(int n) noexcept {
+    return n <= 8 ? 1 :
+           n <= 12 ? 2 :
+           n <= 15 ? 3 :
+           n <= 17 ? 4 :
+           n <= 19 ? 5 :
+           6;
+}
 
 enum MateValue {
     N = 0, R = 1, L = 2, X = 3
@@ -809,24 +842,85 @@ bool configure_thread_count(int requested_threads) {
 #endif
 }
 
+// n を実際に数え上げて結果を表示する。LIMBS は要素の limb 数。
+template<std::size_t LIMBS>
+int runCount(int n, int timeLimitSeconds,
+             const std::chrono::steady_clock::time_point start,
+             const std::chrono::steady_clock::time_point deadline) {
+    using Number = FixedCount<LIMBS>;
+
+    const int gridSize = n + 1;
+    PathCounter<Number> counter(gridSize, gridSize);
+    Number paths;
+    const bool completed = counter.count(deadline, paths);
+    const auto finish = std::chrono::steady_clock::now();
+    const auto elapsedNs =
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            finish - start).count();
+
+    std::cout
+        << "algorithm = minimal-perfect-hash in-place DP (exact "
+        << Number::BIT_COUNT << "-bit)\n"
+        << "n = " << n << '\n'
+        << "limit = " << timeLimitSeconds << " seconds\n"
+        << "status = " << (completed ? "COMPLETED" : "TIME_LIMIT")
+        << '\n'
+        << "paths = "
+        << (completed ? paths.to_string() : std::string("INCOMPLETE"))
+        << '\n'
+        << "main states = " << counter.main_state_count() << '\n'
+        << "deferred states = " << counter.deferred_state_count() << '\n'
+        << "number storage bytes = "
+        << counter.number_storage_bytes() << '\n'
+        << "element bytes = " << sizeof(Number) << '\n'
+        << "updates = " << counter.completed_updates() << '\n'
+        << "state visits = " << counter.state_visits() << '\n'
+        << "progress row = " << counter.progress_row()
+        << ", col = " << counter.progress_col() << '\n'
+        << "threads = " << configured_thread_count() << '\n'
+        << "elapsed = " << std::fixed << std::setprecision(9)
+        << static_cast<double>(elapsedNs) / 1'000'000'000.0
+        << " seconds\n"
+        << "elapsed_ns = " << elapsedNs << '\n';
+    return 0;
+}
+
+// limbCountForN() の戻り値ごとに runCount を実体化して振り分ける。
+int dispatchCount(int n, int timeLimitSeconds, int forcedLimbs,
+                  const std::chrono::steady_clock::time_point start,
+                  const std::chrono::steady_clock::time_point deadline) {
+    switch (forcedLimbs > 0 ? forcedLimbs : limbCountForN(n)) {
+        case 1: return runCount<1>(n, timeLimitSeconds, start, deadline);
+        case 2: return runCount<2>(n, timeLimitSeconds, start, deadline);
+        case 3: return runCount<3>(n, timeLimitSeconds, start, deadline);
+        case 4: return runCount<4>(n, timeLimitSeconds, start, deadline);
+        case 5: return runCount<5>(n, timeLimitSeconds, start, deadline);
+        default: return runCount<6>(n, timeLimitSeconds, start, deadline);
+    }
+}
+
 int main(int argc, char* argv[]) {
     int n = 18;
     int timeLimitSeconds = 60;
     int requestedThreads = 0;
-    if (argc > 4 ||
+    int forcedLimbs = 0;
+    if (argc > 5 ||
         (argc > 1 && !parse_int_argument(argv[1], n)) ||
         (argc > 2 && !parse_int_argument(argv[2], timeLimitSeconds)) ||
-        (argc > 3 && !parse_int_argument(argv[3], requestedThreads))) {
+        (argc > 3 && !parse_int_argument(argv[3], requestedThreads)) ||
+        (argc > 4 && !parse_int_argument(argv[4], forcedLimbs))) {
         std::cerr << "usage: " << argv[0] << " [n:0.." << MAX_N
-                  << "] [time-limit-seconds:1..] [threads:1..]\n";
+                  << "] [time-limit-seconds:1..] [threads:1..] [limbs:1..6]\n";
         return 1;
     }
     if (n < 0 || n > MAX_N || timeLimitSeconds < 1 ||
         (argc > 3 && requestedThreads < 1) ||
+        (argc > 4 && (forcedLimbs < 1 || forcedLimbs > 6)) ||
         !configure_thread_count(requestedThreads)) {
         std::cerr << "n must be between 0 and " << MAX_N
-                  << ", the time limit must be positive, and the requested "
-                     "thread count must be supported.\n";
+                  << ", the time limit must be positive, the requested "
+                     "thread count must be supported, and the limb count must "
+                     "be between 1 and 6.\n";
         return 1;
     }
 
@@ -839,8 +933,10 @@ int main(int argc, char* argv[]) {
             const auto elapsedNs =
                 std::chrono::duration_cast<std::chrono::nanoseconds>(
                     finish - start).count();
+            constexpr int zeroLimbs = limbCountForN(0);
             std::cout
-                << "algorithm = minimal-perfect-hash in-place DP (exact 384-bit)\n"
+                << "algorithm = minimal-perfect-hash in-place DP (exact "
+                << FixedCount<zeroLimbs>::BIT_COUNT << "-bit)\n"
                 << "n = 0\n"
                 << "limit = " << timeLimitSeconds << " seconds\n"
                 << "status = COMPLETED\n"
@@ -848,6 +944,7 @@ int main(int argc, char* argv[]) {
                 << "main states = 1\n"
                 << "deferred states = 0\n"
                 << "number storage bytes = 0\n"
+                << "element bytes = " << sizeof(FixedCount<zeroLimbs>) << '\n'
                 << "updates = 0\n"
                 << "state visits = 0\n"
                 << "progress row = 0, col = 0\n"
@@ -859,38 +956,7 @@ int main(int argc, char* argv[]) {
             return 0;
         }
 
-        const int gridSize = n + 1;
-        PathCounter<Count> counter(gridSize, gridSize);
-        Count paths;
-        const bool completed = counter.count(deadline, paths);
-        const auto finish = std::chrono::steady_clock::now();
-        const auto elapsedNs =
-            std::chrono::duration_cast<std::chrono::nanoseconds>(
-                finish - start).count();
-
-        std::cout
-            << "algorithm = minimal-perfect-hash in-place DP (exact 384-bit)\n"
-            << "n = " << n << '\n'
-            << "limit = " << timeLimitSeconds << " seconds\n"
-            << "status = " << (completed ? "COMPLETED" : "TIME_LIMIT")
-            << '\n'
-            << "paths = "
-            << (completed ? paths.to_string() : std::string("INCOMPLETE"))
-            << '\n'
-            << "main states = " << counter.main_state_count() << '\n'
-            << "deferred states = " << counter.deferred_state_count() << '\n'
-            << "number storage bytes = "
-            << counter.number_storage_bytes() << '\n'
-            << "updates = " << counter.completed_updates() << '\n'
-            << "state visits = " << counter.state_visits() << '\n'
-            << "progress row = " << counter.progress_row()
-            << ", col = " << counter.progress_col() << '\n'
-            << "threads = " << configured_thread_count() << '\n'
-            << "elapsed = " << std::fixed << std::setprecision(9)
-            << static_cast<double>(elapsedNs) / 1'000'000'000.0
-            << " seconds\n"
-            << "elapsed_ns = " << elapsedNs << '\n';
-        return 0;
+        return dispatchCount(n, timeLimitSeconds, forcedLimbs, start, deadline);
     } catch (const std::bad_alloc&) {
         std::cerr << "error: out of memory\n";
     } catch (const std::exception& error) {
