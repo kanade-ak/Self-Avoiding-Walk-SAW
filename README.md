@@ -106,13 +106,15 @@ build\moto_probe_mph_inplace_fixed_parallel.exe 16 120 16 6   : limb 数を6に�
 最終limb数まで拡張するため、ピークメモリはfixed版と同水準になる。
 
 詳細は [growable limb実装と測定](docs/GROWABLE_LIMB_EXPERIMENT.md) および
-[最適化余地の調査](docs/OPTIMIZATION_HEADROOM.md)。
+[最適化余地の調査](docs/OPTIMIZATION_HEADROOM.md)。採用後に集めた次の候補と予備測定は
+[growable limbs 採用後の最適化候補](docs/OPTIMIZATION_CANDIDATES.md) にまとめた。
 
 ## ドキュメント
 
 - [MPH / in-place DP ベンチマーク](docs/BENCHMARK_MPH_INPLACE.md)
 - [自己回避経路 DP 最適化 v2](docs/OPTIMIZATION_V2.md)
 - [最適化余地の調査](docs/OPTIMIZATION_HEADROOM.md)
+- [growable limbs 採用後の最適化候補（暫定報告）](docs/OPTIMIZATION_CANDIDATES.md)
 - [growable limb実装と測定](docs/GROWABLE_LIMB_EXPERIMENT.md)
 - [到達状態枝刈りの調査記録](docs/REACHABLE_STATE_PRUNING.md)
 - [GGCOUNT由来コードのライセンス](LICENSE_GGCOUNT_MIT.txt)
