@@ -4,6 +4,10 @@
 
 フロンティア状態の持ち方そのものを変更することで、従来のsparse ranked map版より大幅に高速化できた。
 
+この文書の固定幅ベンチマーク実装は現在
+`src/experiments/moto_probe_mph_inplace_fixed.cpp` に保存されている。メインの
+`src/moto_probe_mph_inplace.cpp` は、同じ状態・遷移を使うgrowable limb版である。
+
 - `START位置 × balanced Motzkin語`を全てrank universeへ含めない
 - 始点成分を「未対応端点を1個持つMotzkin状態」として直接列挙
 - 有効状態だけにminimal perfect hashを割り当てる

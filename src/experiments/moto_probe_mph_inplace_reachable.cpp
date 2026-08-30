@@ -1,8 +1,8 @@
 /*
  * Computing the Number of Paths in a Grid Graph
  *
- * Position-reachable-state variant of moto_probe_mph_inplace.cpp.
- * The original in-place transition is included unchanged for the common
+ * Position-reachable-state variant of the fixed-width in-place baseline.
+ * The fixed-width transition is included unchanged for the common
  * state encoding and arithmetic types; this file replaces only the driver
  * that selects state blocks for each cell.
  *
@@ -31,12 +31,12 @@
 #pragma push_macro("main")
 #undef main
 #define main moto_probe_mph_inplace_original_main
-#include "../moto_probe_mph_inplace.cpp"
+#include "moto_probe_mph_inplace_fixed.cpp"
 #undef main
 #pragma pop_macro("main")
 #else
 #define main moto_probe_mph_inplace_original_main
-#include "../moto_probe_mph_inplace.cpp"
+#include "moto_probe_mph_inplace_fixed.cpp"
 #undef main
 #endif
 

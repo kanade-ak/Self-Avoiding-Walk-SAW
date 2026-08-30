@@ -7,7 +7,7 @@
 | 場所 | 内容 |
 |---|---|
 | `src/` | 現行実装（MPH in-place、v2メモリ優先、v2速度優先） |
-| `src/experiments/` | 実験実装（可変limb・active limb・到達状態枝刈り、いずれも不採用） |
+| `src/experiments/` | 比較用fixed版と実験実装（可変limb、active limb、到達状態枝刈り） |
 | `src/reference/` | 参照実装の移植版 |
 | `src/legacy/` | 旧世代の実装 |
 | `tests/` | C++テストコード |
@@ -27,11 +27,18 @@ scripts\test\test_probe_mph_inplace_cpp.bat
 scripts\test\test_probe_optimized_v2_cpp.bat
 ```
 
-MPH in-place版をビルドして実行する場合:
+MPH in-place版（要素サイズ実行時成長）をビルドして実行する場合:
 
 ```bat
 scripts\build\build_probe_mph_inplace_cpp.bat
 build\moto_probe_mph_inplace_parallel.exe 18 120 16
+```
+
+比較用のfixed版をビルドして実行する場合:
+
+```bat
+scripts\build\build_probe_mph_inplace_fixed_experiment.bat
+build\moto_probe_mph_inplace_fixed_parallel.exe 18 120 16
 ```
 
 v2の速度優先版とメモリ優先版を同じ条件で比較する場合:
@@ -64,8 +71,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\benchmark\benchmark_mph_inpla
 
 ## 採用した最適化
 
-`src/moto_probe_mph_inplace.cpp` のボトルネックは演算でも分岐でもなく **メモリ転送量**
-（時間が要素サイズにほぼ比例する）。そこで要素の limb 数を n ごとに最小にした
+比較用fixed版 `src/experiments/moto_probe_mph_inplace_fixed.cpp` のボトルネックは演算でも
+分岐でもなく **メモリ転送量**（時間が要素サイズにほぼ比例する）。まず要素のlimb数を
+nごとに最小にした
 （`FixedCount<LIMB_COUNT>` + `limbCountForN()`、n=16 は6→4、n=18/19 は6→5）。
 
 | n | 14 | 15 | 16 | 17 | 18 | 19 | 20 |
@@ -78,25 +86,34 @@ powershell -ExecutionPolicy Bypass -File .\scripts\benchmark\benchmark_mph_inpla
 第4引数で limb 数を強制できる（A/B 計測用。省略時は自動）。
 
 ```bat
-build\moto_probe_mph_inplace_parallel.exe 18 120 16
-build\moto_probe_mph_inplace_parallel.exe 16 120 16 6   : limb 数を6に固定
+build\moto_probe_mph_inplace_fixed_parallel.exe 18 120 16
+build\moto_probe_mph_inplace_fixed_parallel.exe 16 120 16 6   : limb 数を6に固定
 ```
 
-## 最適化の余地
+## 要素サイズの実行時成長版
 
-残っている余地は次の1つ。
+`src/moto_probe_mph_inplace.cpp` は、数値配列を1 limbで開始し、安全な上界に基づいて
+必要な幅まで物理的に拡張する。以下の結果を受けてメイン実装として採用した。
+16 threadsでfixed版と交互に再測定した結果は次のとおり。
 
-| 施策 | 効果 |
-|---|---|
-| 要素サイズの実行時成長（未実装） | n=20 で推定 約1.9〜2.0倍（244.6秒 → 約126秒） |
+| n | fixed版 | growable版 | 時間短縮 | 高速化 |
+|---:|---:|---:|---:|---:|
+| 16 | 1.6223秒（3回中央値） | 1.1367秒（3回中央値） | **29.9%** | 1.43倍 |
+| 18 | 19.9065秒（3回中央値） | 13.4424秒（3回中央値） | **32.5%** | 1.48倍 |
+| 20 | 227.0821秒（1回） | 156.4244秒（1回） | **31.1%** | 1.45倍 |
 
-詳細は [最適化余地の調査](docs/OPTIMIZATION_HEADROOM.md)。
+全測定で `paths` と state visits はfixed版に一致した。途中の転送量は減るが、完走時には
+最終limb数まで拡張するため、ピークメモリはfixed版と同水準になる。
+
+詳細は [growable limb実装と測定](docs/GROWABLE_LIMB_EXPERIMENT.md) および
+[最適化余地の調査](docs/OPTIMIZATION_HEADROOM.md)。
 
 ## ドキュメント
 
 - [MPH / in-place DP ベンチマーク](docs/BENCHMARK_MPH_INPLACE.md)
 - [自己回避経路 DP 最適化 v2](docs/OPTIMIZATION_V2.md)
 - [最適化余地の調査](docs/OPTIMIZATION_HEADROOM.md)
+- [growable limb実装と測定](docs/GROWABLE_LIMB_EXPERIMENT.md)
 - [到達状態枝刈りの調査記録](docs/REACHABLE_STATE_PRUNING.md)
 - [GGCOUNT由来コードのライセンス](LICENSE_GGCOUNT_MIT.txt)
 

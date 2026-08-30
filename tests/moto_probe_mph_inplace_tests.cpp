@@ -1,6 +1,6 @@
-#define main moto_probe_mph_inplace_program_main
+#define MPH_INPLACE_PROGRAM_MAIN moto_probe_mph_inplace_program_main
 #include "../src/moto_probe_mph_inplace.cpp"
-#undef main
+#undef MPH_INPLACE_PROGRAM_MAIN
 
 #include <array>
 #include <chrono>
@@ -20,13 +20,45 @@ void require(bool condition, const std::string& message) {
     }
 }
 
-void test_minimal_state_universe() {
-    MateCodec mainCodec(21, 11, 1, 0);
-    MateCodec deferredCodec(20, 10, 1, 0);
-    require(mainCodec.codeSize() == 258'215'664ULL,
-            "n=20 main minimal-perfect-hash state count");
-    require(deferredCodec.codeSize() == 91'695'540ULL,
-            "n=20 deferred minimal-perfect-hash state count");
+void test_in_place_growth_preserves_elements() {
+    // Large enough that every promotion has to commit additional pages.  This
+    // exercises both the VirtualAlloc boundary handling and the overlapping
+    // backwards relocation, rather than only moving inside the first page.
+    constexpr Code elementCount = 1025;
+    growable_mph::CompactLimbArray values(elementCount, 3);
+    require(values.logical_bytes() == elementCount * sizeof(std::uint64_t),
+            "compact array starts with one physical limb per element");
+    require(values.reserved_bytes()
+                == elementCount * 3 * sizeof(std::uint64_t),
+            "compact array reserves its maximum physical width");
+
+    for (Code index = 0; index < elementCount; ++index) {
+        values.at<1>(index) = static_cast<std::uint32_t>(index + 10);
+    }
+    values.grow();
+    require(values.active_limbs() == 2,
+            "first compact growth activates two limbs");
+    for (Code index = 0; index < elementCount; ++index) {
+        const auto limbs = values.at<2>(index).load();
+        require(limbs[0] == index + 10 && limbs[1] == 0,
+                "first compact growth preserves element "
+                    + std::to_string(index));
+    }
+    constexpr Code changedIndex = elementCount / 2;
+    values.at<2>(changedIndex) += std::array<std::uint64_t, 2>{7, 3};
+    values.grow();
+    require(values.active_limbs() == 3,
+            "second compact growth activates three limbs");
+    for (Code index = 0; index < elementCount; ++index) {
+        const auto grown = values.at<3>(index).load();
+        const std::uint64_t expectedLow = index + 10
+            + (index == changedIndex ? 7 : 0);
+        const std::uint64_t expectedMiddle = index == changedIndex ? 3 : 0;
+        require(grown[0] == expectedLow && grown[1] == expectedMiddle
+                    && grown[2] == 0,
+                "second compact growth preserves element "
+                    + std::to_string(index));
+    }
 }
 
 void test_known_path_counts() {
@@ -50,27 +82,25 @@ void test_known_path_counts() {
         "68745445609149931587631563132489232824587945968099457285419306",
     };
 
-    for (int n = 0; n < static_cast<int>(expected.size()); ++n) {
-        if (n == 0) {
-            require(std::string(expected[n]) == "1", "n=0 path count");
-            continue;
-        }
+    for (int n = 1; n < static_cast<int>(expected.size()); ++n) {
         const int gridSize = n + 1;
-        PathCounter<Count> counter(gridSize, gridSize);
-        Count paths;
+        growable_mph::GrowablePathCounter counter(
+            gridSize, gridSize,
+            static_cast<std::size_t>(limbCountForN(n)));
+        growable_mph::GrowableResult paths;
         const bool completed = counter.count(
             std::chrono::steady_clock::now() + std::chrono::minutes(5),
             paths);
         require(completed && paths.to_string() == expected[n],
-                "known in-place path count at n=" + std::to_string(n));
+                "known growable path count at n=" + std::to_string(n));
     }
 }
 } // namespace
 
 int main() {
     msg = NONE;
-    test_minimal_state_universe();
+    test_in_place_growth_preserves_elements();
     test_known_path_counts();
-    std::cout << "All minimal-perfect-hash in-place tests passed.\n";
+    std::cout << "All compact growable-limb tests passed.\n";
     return 0;
 }
