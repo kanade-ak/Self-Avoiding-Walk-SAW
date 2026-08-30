@@ -1,6 +1,7 @@
 @echo off
 setlocal EnableExtensions
-pushd "%~dp0"
+pushd "%~dp0..\.."
+if not exist "build" mkdir "build"
 
 where cl.exe >nul 2>&1
 if not errorlevel 1 goto :build
@@ -21,11 +22,11 @@ call "%VSINSTALL%\VC\Auxiliary\Build\vcvars64.bat" >nul
 if errorlevel 1 goto :error
 
 :build
-cl.exe /nologo /O2 /GL /EHsc /std:c++20 /utf-8 /W4 /permissive- /DNDEBUG moto_probe_optimized_v2_fast.cpp /Fe:moto_probe_optimized_v2_fast.exe /link /LTCG
+cl.exe /nologo /O2 /GL /EHsc /std:c++20 /utf-8 /W4 /permissive- /DNDEBUG src\reference\moto_probe_mph_reference_port.cpp /Fe:build\moto_probe_mph_reference_port.exe /Fo:build\moto_probe_mph_reference_port.obj /link /LTCG
 if errorlevel 1 goto :error
-del /q moto_probe_optimized_v2_fast.obj >nul 2>&1
+del /q build\moto_probe_mph_reference_port.obj >nul 2>&1
 
-echo Built: %CD%\moto_probe_optimized_v2_fast.exe
+echo Built: %CD%\build\moto_probe_mph_reference_port.exe
 popd
 exit /b 0
 

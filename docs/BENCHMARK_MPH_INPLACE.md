@@ -19,12 +19,12 @@ main側の状態番号空間は約91.8%減少している。計算量は依然�
 
 ## 新規ファイル
 
-- `moto_probe_mph_inplace.cpp`
-- `build_probe_mph_inplace_cpp.bat`
-- `moto_probe_mph_inplace_tests.cpp`
-- `test_probe_mph_inplace_cpp.bat`
-- `benchmark_mph_inplace_probe.ps1`
-- `analyze_probe_mph_inplace.bat`
+- `src/moto_probe_mph_inplace.cpp`
+- `scripts/build/build_probe_mph_inplace_cpp.bat`
+- `tests/moto_probe_mph_inplace_tests.cpp`
+- `scripts/test/test_probe_mph_inplace_cpp.bat`
+- `scripts/benchmark/benchmark_mph_inplace_probe.ps1`
+- `scripts/test/analyze_probe_mph_inplace.bat`
 - `LICENSE_GGCOUNT_MIT.txt`
 
 アルゴリズムのMateCodec / in-place更新はERATO MINATO ProjectのMITライセンス実装を基に、単純経路専用化、64ビットlimb、MSVC/OpenMP、期限処理、入力検証、統計出力を追加した。
@@ -32,25 +32,25 @@ main側の状態番号空間は約91.8%減少している。計算量は依然�
 ## ビルド
 
 ```bat
-build_probe_mph_inplace_cpp.bat
+scripts\build\build_probe_mph_inplace_cpp.bat
 ```
 
 生成物:
 
-- `moto_probe_mph_inplace.exe`: 1スレッド
-- `moto_probe_mph_inplace_parallel.exe`: OpenMP版
+- `build\moto_probe_mph_inplace.exe`: 1スレッド
+- `build\moto_probe_mph_inplace_parallel.exe`: OpenMP版
 
 OpenMP版は既定で最大16スレッド。3番目の引数で変更できる。
 
 ```bat
-moto_probe_mph_inplace_parallel.exe 18 120 16
+build\moto_probe_mph_inplace_parallel.exe 18 120 16
 ```
 
 ## テスト
 
 ```bat
-test_probe_mph_inplace_cpp.bat
-analyze_probe_mph_inplace.bat
+scripts\test\test_probe_mph_inplace_cpp.bat
+scripts\test\analyze_probe_mph_inplace.bat
 ```
 
 確認済み:
@@ -74,9 +74,9 @@ analyze_probe_mph_inplace.bat
 
 | n | 実装 | 状態 | 時間 | Peak private memory |
 |---:|---|---|---:|---:|
-| 16 | `moto_probe_optimized_v2_fast.exe` | COMPLETED | 46.257秒 | 1,166,671,872 bytes |
+| 16 | `build\moto_probe_optimized_v2_fast.exe` | COMPLETED | 46.257秒 | 1,166,671,872 bytes |
 | 16 | MPH in-place parallel | COMPLETED | 2.378秒 | 278,450,176 bytes |
-| 18 | `moto_probe_optimized_v2_fast.exe` | TIME_LIMIT | 60.383秒 | 8,818,769,920 bytes |
+| 18 | `build\moto_probe_optimized_v2_fast.exe` | TIME_LIMIT | 60.383秒 | 8,818,769,920 bytes |
 | 18 | MPH in-place parallel | COMPLETED | 23.224秒 | 2,147,684,352 bytes |
 
 n=16では約19.5倍高速で、Peak private memoryは約76%減少した。
@@ -120,21 +120,24 @@ n=18では16 threadsが22.398秒で最良、12 threadsが22.487秒、24 threads�
 
 依頼に従い、一時的な確認コード・失敗を含む実験も削除していない。
 
-- `moto_probe_mph_reference_port.cpp`
-- `build_probe_mph_reference_port.bat`
-- `benchmark_mph_reference_probe.ps1`
-- `moto_probe_mph_inplace_variable_limb_experiment.cpp`
-- `build_probe_mph_inplace_variable_limb_experiment.bat`
-- `moto_probe_mph_inplace_active_limb_experiment.cpp`
-- `build_probe_mph_inplace_active_limb_experiment.bat`
-- `build_probe_mph_inplace_pgo_experiment.bat`
+- `src/reference/moto_probe_mph_reference_port.cpp`
+- `scripts/build/build_probe_mph_reference_port.bat`
+- `scripts/benchmark/benchmark_mph_reference_probe.ps1`
+- `src/experiments/moto_probe_mph_inplace_variable_limb_experiment.cpp`
+- `scripts/build/build_probe_mph_inplace_variable_limb_experiment.bat`
+- `src/experiments/moto_probe_mph_inplace_active_limb_experiment.cpp`
+- `scripts/build/build_probe_mph_inplace_active_limb_experiment.bat`
+- `scripts/build/build_probe_mph_inplace_pgo_experiment.bat`
+- `src/experiments/moto_probe_mph_inplace_reachable.cpp` — 位置ごとの到達状態枝刈り。
+  効果なしと判定し不採用。調査の詳細は `docs/REACHABLE_STATE_PRUNING.md`。
+  この実装には未修正の欠陥が2つある（n>=5 で過小計上、n=15 で SIGSEGV）。
 
-一時生成物はルートには置かず、`audit_logs/` へ集約している。
+一時生成物はルートには置かず、`benchmarks/audit_logs/` へ集約している。
 
-- `audit_logs/stdout/` - 各実行の標準出力
-- `audit_logs/stderr/` - 各実行の標準エラー出力
-- `audit_logs/build_artifacts/` - `.obj` / `.pgc` / `.pgd` / 静的解析 XML
-- `audit_logs/README.md` - 40件の実行一覧（n、threads、status、経過時間）
+- `benchmarks/audit_logs/stdout/` - 各実行の標準出力
+- `benchmarks/audit_logs/stderr/` - 各実行の標準エラー出力
+- `benchmarks/audit_logs/build_artifacts/` - `.obj` / `.pgc` / `.pgd` / 静的解析 XML
+- `benchmarks/audit_logs/README.md` - 40件の実行一覧（n、threads、status、経過時間）
 
 実験結果:
 
@@ -146,33 +149,33 @@ n=18では16 threadsが22.398秒で最良、12 threadsが22.487秒、24 threads�
 ## ベンチマーク再実行
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\benchmark_mph_inplace_probe.ps1 `
+powershell -ExecutionPolicy Bypass -File .\scripts\benchmark\benchmark_mph_inplace_probe.ps1 `
   -N 18 -LimitSeconds 120 `
-  -Executable .\moto_probe_mph_inplace_parallel.exe `
+  -Executable .\build\moto_probe_mph_inplace_parallel.exe `
   -Tag rerun
 ```
 
-stdout / stderrは監査用に削除せず保存される。probe実行時にルートへ書かれた
-`.mph_*.tmp` は、整理のため `audit_logs/stdout/` と `audit_logs/stderr/` へ
-移動してある（`.tmp` から `.txt` へ改名、先頭のドットは除去）。
-`audit_logs/` はGit管理外のため、証跡をバージョン管理したい場合は
-`.gitignore` の `audit_logs/` 行を削除する。
+stdout / stderrは監査用に削除せず、`benchmarks/audit_logs/stdout/` と
+`benchmarks/audit_logs/stderr/` に保存される。`benchmarks/audit_logs/` は
+Git管理外のため、証跡をバージョン管理したい場合は `.gitignore` の
+`benchmarks/audit_logs/` 行を削除する。
 
 ## リポジトリ運用
 
 このディレクトリはGitリポジトリである。管理対象はソース、ビルド/テスト/
 ベンチマークスクリプト、ドキュメント、および確定した計測結果
-（`benchmark_mph_inplace_results.csv`）のみ。
+（`benchmarks/results/benchmark_mph_inplace_results.csv` など）のみ。
 
 `.gitignore` で除外しているもの:
 
 - ビルド成果物（`.exe` / `.obj` / `.pdb` など）
 - PGOプロファイル（`.pgc` / `.pgd`）
-- probeスクリプトが書く `.mph_*.tmp` と、その集約先 `audit_logs/`
-- `old/` - 初代実装一式（ディスクには残すが版管理しない）
+- probeスクリプトが書く一時ログと、その集約先 `benchmarks/audit_logs/`
+- `archive/legacy/` - 初代実装一式（ディスクには残すが版管理しない）
+- `archive/scratch/` - 使い捨ての調査用コードとその生成物
 - `.workbuddy-ai/` - エージェント作業領域
 
-`old/` を版管理に戻したい場合は `.gitignore` の `old/` 行を削除する。
+`archive/` を版管理に戻したい場合は `.gitignore` の `archive/` 行を削除する。
 
 `.gitattributes` で `.bat` / `.cmd` / `.ps1` はCRLF固定、その他はLFに正規化
 している。Windowsのバッチファイルは改行がLFだと `goto` のラベル処理が

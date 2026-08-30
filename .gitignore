@@ -1,6 +1,10 @@
 # ---------------------------------------------------------------------------
-# Build artifacts (regenerable via the build_*.bat scripts)
+# Build artifacts (regenerable via scripts/build/*.bat)
+#
+# Anchored to the repository root on purpose: an unanchored `build/` also
+# swallows scripts/build/, which holds versioned build scripts.
 # ---------------------------------------------------------------------------
+/build/
 *.exe
 *.obj
 *.pdb
@@ -19,20 +23,20 @@
 # ---------------------------------------------------------------------------
 # Benchmark scratch output
 #
-# The probe scripts write `.mph_*.stdout.tmp` / `.mph_*.stderr.tmp` into the
-# repository root. Those captures are collected into `audit_logs/` (see
-# audit_logs/README.md) rather than being deleted, so the audit trail survives.
-# Neither the raw captures nor the collected copy is versioned — both are
-# regenerable output.
+# Probe captures and local benchmark audit output are regenerable and kept
+# outside version control. Curated benchmark results under benchmarks/results/
+# remain versioned unless explicitly ignored below.
 # ---------------------------------------------------------------------------
 .mph_*.tmp
 *.tmp
-audit_logs/
+benchmarks/audit_logs/
+benchmarks/results/benchmark_v2_*.txt
 
 # ---------------------------------------------------------------------------
-# Superseded first-generation implementations (kept on disk, not versioned)
+# Superseded implementations and throwaway scratch code (kept on disk, not
+# versioned)
 # ---------------------------------------------------------------------------
-old/
+archive/
 
 # ---------------------------------------------------------------------------
 # Agent workspace (project memory and session state)

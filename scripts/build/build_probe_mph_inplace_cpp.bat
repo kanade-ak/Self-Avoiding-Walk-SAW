@@ -1,6 +1,7 @@
 @echo off
 setlocal EnableExtensions
-pushd "%~dp0"
+pushd "%~dp0..\.."
+if not exist "build" mkdir "build"
 
 where cl.exe >nul 2>&1
 if not errorlevel 1 goto :build
@@ -17,16 +18,16 @@ call "%VSINSTALL%\VC\Auxiliary\Build\vcvars64.bat" >nul
 if errorlevel 1 goto :error
 
 :build
-cl.exe /nologo /O2 /GL /EHsc /std:c++20 /utf-8 /W4 /permissive- /DNDEBUG moto_probe_mph_inplace_variable_limb_experiment.cpp /Fe:moto_probe_mph_inplace_variable_limb_experiment.exe /link /LTCG
+cl.exe /nologo /O2 /GL /EHsc /std:c++20 /utf-8 /W4 /permissive- /DNDEBUG src\moto_probe_mph_inplace.cpp /Fe:build\moto_probe_mph_inplace.exe /Fo:build\moto_probe_mph_inplace.obj /link /LTCG
 if errorlevel 1 goto :error
-del /q moto_probe_mph_inplace_variable_limb_experiment.obj >nul 2>&1
+del /q build\moto_probe_mph_inplace.obj >nul 2>&1
 
-cl.exe /nologo /O2 /EHsc /std:c++20 /utf-8 /W4 /permissive- /DNDEBUG /openmp moto_probe_mph_inplace_variable_limb_experiment.cpp /Fe:moto_probe_mph_inplace_variable_limb_experiment_parallel.exe
+cl.exe /nologo /O2 /EHsc /std:c++20 /utf-8 /W4 /permissive- /DNDEBUG /openmp src\moto_probe_mph_inplace.cpp /Fe:build\moto_probe_mph_inplace_parallel.exe /Fo:build\moto_probe_mph_inplace.obj
 if errorlevel 1 goto :error
-del /q moto_probe_mph_inplace_variable_limb_experiment.obj >nul 2>&1
+del /q build\moto_probe_mph_inplace.obj >nul 2>&1
 
-echo Built: %CD%\moto_probe_mph_inplace_variable_limb_experiment.exe
-echo Built: %CD%\moto_probe_mph_inplace_variable_limb_experiment_parallel.exe
+echo Built: %CD%\build\moto_probe_mph_inplace.exe
+echo Built: %CD%\build\moto_probe_mph_inplace_parallel.exe
 popd
 exit /b 0
 

@@ -1,5 +1,5 @@
 #define main moto_probe_optimized_v2_fast_program_main
-#include "moto_probe_optimized_v2_fast.cpp"
+#include "../src/moto_probe_optimized_v2_fast.cpp"
 #undef main
 
 #include <array>

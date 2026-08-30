@@ -1,12 +1,25 @@
 param(
     [int]$N = 16,
     [int]$LimitSeconds = 120,
-    [string]$Executable = ".\moto_probe_mph_inplace.exe",
+    [string]$Executable = "",
     [string]$Tag = "single"
 )
 
-$stdout = ".mph_inplace_${Tag}_n$N.stdout.tmp"
-$stderr = ".mph_inplace_${Tag}_n$N.stderr.tmp"
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$auditRoot = Join-Path $repoRoot "benchmarks\audit_logs"
+New-Item -ItemType Directory -Force -Path (Join-Path $auditRoot "stdout"), (Join-Path $auditRoot "stderr") | Out-Null
+
+if ([string]::IsNullOrWhiteSpace($Executable)) {
+    $Executable = Join-Path $repoRoot "build\moto_probe_mph_inplace.exe"
+} elseif (-not [System.IO.Path]::IsPathRooted($Executable)) {
+    $Executable = [System.IO.Path]::GetFullPath((Join-Path ([string](Get-Location)) $Executable))
+}
+if (-not (Test-Path -LiteralPath $Executable)) {
+    throw "Executable not found: $Executable"
+}
+
+$stdout = Join-Path $auditRoot "stdout\mph_inplace_${Tag}_n$N.stdout.txt"
+$stderr = Join-Path $auditRoot "stderr\mph_inplace_${Tag}_n$N.stderr.txt"
 $watch = [System.Diagnostics.Stopwatch]::StartNew()
 $process = Start-Process -FilePath $Executable `
     -ArgumentList @("$N", "$LimitSeconds") -PassThru -NoNewWindow `

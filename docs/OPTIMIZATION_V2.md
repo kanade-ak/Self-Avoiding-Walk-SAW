@@ -1,7 +1,7 @@
 # 自己回避経路 DP 最適化 v2
 
 > 追補: 状態集合そのものを削減する後続実装は
-> `moto_probe_mph_inplace.cpp` / `BENCHMARK_MPH_INPLACE.md`を参照。
+> `src/moto_probe_mph_inplace.cpp` / `BENCHMARK_MPH_INPLACE.md`を参照。
 
 既存ファイルを変更せず、速度優先版とメモリ優先版を新規ファイルとして追加した。
 
@@ -9,9 +9,9 @@
 
 ### メモリ優先・上限保証版
 
-- `moto_probe_optimized_v2.cpp`
-- `build_probe_optimized_v2_cpp.bat`
-- 出力: `moto_probe_optimized_v2.exe`
+- `src/moto_probe_optimized_v2.cpp`
+- `scripts/build/build_probe_optimized_v2_cpp.bat`
+- 出力: `build/moto_probe_optimized_v2.exe`
 
 主な変更:
 
@@ -29,9 +29,9 @@
 
 ### 速度優先版
 
-- `moto_probe_optimized_v2_fast.cpp`
-- `build_probe_optimized_v2_fast_cpp.bat`
-- 出力: `moto_probe_optimized_v2_fast.exe`
+- `src/moto_probe_optimized_v2_fast.cpp`
+- `scripts/build/build_probe_optimized_v2_fast_cpp.bat`
+- 出力: `build/moto_probe_optimized_v2_fast.exe`
 
 主な変更:
 
@@ -56,15 +56,15 @@
 
 ## テスト
 
-- `moto_probe_optimized_v2_tests.cpp`
-- `moto_probe_optimized_v2_fast_tests.cpp`
-- `test_probe_optimized_v2_cpp.bat`
-- `benchmark_probe_optimized_v2.bat`
+- `tests/moto_probe_optimized_v2_tests.cpp`
+- `tests/moto_probe_optimized_v2_fast_tests.cpp`
+- `scripts/test/test_probe_optimized_v2_cpp.bat`
+- `scripts/benchmark/benchmark_probe_optimized_v2.bat`
 
 実行:
 
 ```bat
-test_probe_optimized_v2_cpp.bat
+scripts\test\test_probe_optimized_v2_cpp.bat
 ```
 
 確認内容:
@@ -80,11 +80,11 @@ test_probe_optimized_v2_cpp.bat
 ## 実行方法
 
 ```bat
-build_probe_optimized_v2_cpp.bat
-moto_probe_optimized_v2.exe 20 60
+scripts\build\build_probe_optimized_v2_cpp.bat
+build\moto_probe_optimized_v2.exe 20 60
 
-build_probe_optimized_v2_fast_cpp.bat
-moto_probe_optimized_v2_fast.exe 20 60
+scripts\build\build_probe_optimized_v2_fast_cpp.bat
+build\moto_probe_optimized_v2_fast.exe 20 60
 ```
 
 引数を省略した場合は`n=18`、制限時間60秒。
@@ -92,7 +92,7 @@ moto_probe_optimized_v2_fast.exe 20 60
 両方を同じ引数で順に計測する場合:
 
 ```bat
-benchmark_probe_optimized_v2.bat 20 60
+scripts\benchmark\benchmark_probe_optimized_v2.bat 20 60
 ```
 
 ## 単発計測の参考値
@@ -121,8 +121,8 @@ n=20、10秒制限での観測例:
 
 ## 選択基準
 
-- n<=16や速度重視: `moto_probe_optimized_v2_fast.exe`
-- n=18〜20や64 GiB内での完走可能性を優先: `moto_probe_optimized_v2.exe`
+- n<=16や速度重視: `build/moto_probe_optimized_v2_fast.exe`
+- n=18〜20や64 GiB内での完走可能性を優先: `build/moto_probe_optimized_v2.exe`
 
 速度優先版は固定384ビットであり、中間カウンタも384ビット以内という前提が残る。メモリ優先版はn<=20について896ビットまで自動昇格するため、この前提を持たない。
 

@@ -1,10 +1,23 @@
 param(
     [int]$N = 15,
-    [string]$Executable = ".\moto_probe_mph_reference_port.exe"
+    [string]$Executable = ""
 )
 
-$stdout = ".mph_reference_n$N.stdout.tmp"
-$stderr = ".mph_reference_n$N.stderr.tmp"
+$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$auditRoot = Join-Path $repoRoot "benchmarks\audit_logs"
+New-Item -ItemType Directory -Force -Path (Join-Path $auditRoot "stdout"), (Join-Path $auditRoot "stderr") | Out-Null
+
+if ([string]::IsNullOrWhiteSpace($Executable)) {
+    $Executable = Join-Path $repoRoot "build\moto_probe_mph_reference_port.exe"
+} elseif (-not [System.IO.Path]::IsPathRooted($Executable)) {
+    $Executable = [System.IO.Path]::GetFullPath((Join-Path ([string](Get-Location)) $Executable))
+}
+if (-not (Test-Path -LiteralPath $Executable)) {
+    throw "Executable not found: $Executable"
+}
+
+$stdout = Join-Path $auditRoot "stdout\mph_reference_n$N.stdout.txt"
+$stderr = Join-Path $auditRoot "stderr\mph_reference_n$N.stderr.txt"
 $watch = [System.Diagnostics.Stopwatch]::StartNew()
 $process = Start-Process -FilePath $Executable -ArgumentList @("-q", "$N") `
     -PassThru -NoNewWindow -RedirectStandardOutput $stdout `

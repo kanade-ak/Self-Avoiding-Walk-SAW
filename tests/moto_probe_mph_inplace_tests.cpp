@@ -1,5 +1,5 @@
 #define main moto_probe_mph_inplace_program_main
-#include "moto_probe_mph_inplace.cpp"
+#include "../src/moto_probe_mph_inplace.cpp"
 #undef main
 
 #include <array>

@@ -1,14 +1,10 @@
 @echo off
 setlocal EnableExtensions
-pushd "%~dp0"
-
-call build_probe_optimized_v2_cpp.bat
-if errorlevel 1 goto :error
-call build_probe_optimized_v2_fast_cpp.bat
-if errorlevel 1 goto :error
+pushd "%~dp0..\.."
+if not exist "build" mkdir "build"
 
 where cl.exe >nul 2>&1
-if not errorlevel 1 goto :compile_tests
+if not errorlevel 1 goto :build
 
 set "VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
 set "VSINSTALL="
@@ -17,28 +13,24 @@ if not defined VSINSTALL if exist "%ProgramFiles%\Microsoft Visual Studio\2022\E
 if not defined VSINSTALL if exist "%ProgramFiles%\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvars64.bat" set "VSINSTALL=%ProgramFiles%\Microsoft Visual Studio\2022\Professional"
 if not defined VSINSTALL if exist "%ProgramFiles%\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" set "VSINSTALL=%ProgramFiles%\Microsoft Visual Studio\2022\Community"
 if not defined VSINSTALL if exist "%ProgramFiles%\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat" set "VSINSTALL=%ProgramFiles%\Microsoft Visual Studio\2022\BuildTools"
-if not defined VSINSTALL goto :error
+if not defined VSINSTALL (
+    echo A Visual Studio installation with the C++ x64 tools was not found.
+    goto :error
+)
+
 call "%VSINSTALL%\VC\Auxiliary\Build\vcvars64.bat" >nul
 if errorlevel 1 goto :error
 
-:compile_tests
-cl.exe /nologo /O2 /EHsc /std:c++20 /utf-8 /W4 /permissive- /DNDEBUG moto_probe_optimized_v2_tests.cpp /Fe:moto_probe_optimized_v2_tests.exe
+:build
+cl.exe /nologo /O2 /GL /EHsc /std:c++20 /utf-8 /W4 /permissive- /DNDEBUG src\moto_probe_optimized_v2_fast.cpp /Fe:build\moto_probe_optimized_v2_fast.exe /Fo:build\moto_probe_optimized_v2_fast.obj /link /LTCG
 if errorlevel 1 goto :error
-cl.exe /nologo /O2 /EHsc /std:c++20 /utf-8 /W4 /permissive- /DNDEBUG moto_probe_optimized_v2_fast_tests.cpp /Fe:moto_probe_optimized_v2_fast_tests.exe
-if errorlevel 1 goto :error
+del /q build\moto_probe_optimized_v2_fast.obj >nul 2>&1
 
-del /q moto_probe_optimized_v2_tests.obj moto_probe_optimized_v2_fast_tests.obj >nul 2>&1
-moto_probe_optimized_v2_tests.exe
-if errorlevel 1 goto :error
-moto_probe_optimized_v2_fast_tests.exe
-if errorlevel 1 goto :error
-del /q moto_probe_optimized_v2_tests.exe moto_probe_optimized_v2_fast_tests.exe >nul 2>&1
-
-echo All v2 builds and tests passed.
+echo Built: %CD%\build\moto_probe_optimized_v2_fast.exe
 popd
 exit /b 0
 
 :error
-echo V2 build or test failed.
+echo Build failed.
 popd
 exit /b 1
