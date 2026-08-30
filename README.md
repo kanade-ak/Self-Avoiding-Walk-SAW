@@ -59,11 +59,26 @@ powershell -ExecutionPolicy Bypass -File .\scripts\benchmark\benchmark_mph_inpla
 | 位置ごとの到達可能状態だけを処理する | 正しくしても state visits は2.1%減、実時間は6.7倍悪化。不採用 | [docs/REACHABLE_STATE_PRUNING.md](docs/REACHABLE_STATE_PRUNING.md) |
 | 可変 limb / active limb | single n=16 で 9.598秒 → 9.217秒 / 8.813秒。OpenMP版では優位性なし | [docs/BENCHMARK_MPH_INPLACE.md](docs/BENCHMARK_MPH_INPLACE.md) |
 | PGO | single n=16 で 9.598秒 → 8.575秒。Parallel PGO は逆に遅くなり不採用 | [docs/BENCHMARK_MPH_INPLACE.md](docs/BENCHMARK_MPH_INPLACE.md) |
+| 無効ペアのブロックを丸ごと skip | 全訪問の15.7%を削れるが n=16 で -2.0%（悪化）。キャッシュライン被覆率が常に100%のため転送量が減らない | [docs/OPTIMIZATION_HEADROOM.md](docs/OPTIMIZATION_HEADROOM.md) |
+| switch のループ外ホイスト | n=16 で +0.2%。分岐予測はボトルネックではない | [docs/OPTIMIZATION_HEADROOM.md](docs/OPTIMIZATION_HEADROOM.md) |
+
+## 最適化の余地
+
+`src/moto_probe_mph_inplace.cpp` のボトルネックは演算でも分岐でもなく **メモリ転送量**
+（時間が要素サイズにほぼ比例する）。残っている余地は次の2つ。
+
+| 施策 | 効果 |
+|---|---|
+| nごとの静的 limb 数（n=16 は6→4、n=18/19 は6→5） | n=16 -33.5% / n=18 -16.2% / n=19 -15.2% / n=20 0% |
+| 要素サイズの実行時成長（未実装） | n=20 で推定 約1.9〜2.0倍（238.8秒 → 約123秒） |
+
+詳細は [最適化余地の調査](docs/OPTIMIZATION_HEADROOM.md)。
 
 ## ドキュメント
 
 - [MPH / in-place DP ベンチマーク](docs/BENCHMARK_MPH_INPLACE.md)
 - [自己回避経路 DP 最適化 v2](docs/OPTIMIZATION_V2.md)
+- [最適化余地の調査](docs/OPTIMIZATION_HEADROOM.md)
 - [到達状態枝刈りの調査記録](docs/REACHABLE_STATE_PRUNING.md)
 - [GGCOUNT由来コードのライセンス](LICENSE_GGCOUNT_MIT.txt)
 
